@@ -1,3 +1,4 @@
+import AllProducts from '../components/AllProducts'
 import BigFeaturedSlider from '../components/BigFeaturedSlider'
 import Feature from '../components/Feature'
 import Hero from '../components/Hero'
@@ -8,6 +9,7 @@ const Home = () => {
      <Hero/>
      <Feature/>
      <BigFeaturedSlider/>
+     <AllProducts/>
     </div>
   )
 }

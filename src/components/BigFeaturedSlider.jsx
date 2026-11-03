@@ -1,176 +1,144 @@
-import { useState, useRef } from 'react';
-import { FiChevronLeft, FiChevronRight, FiShoppingCart, FiHeart } from 'react-icons/fi';
+import { useState, useRef } from "react";
+import { FiChevronLeft, FiChevronRight, FiShoppingCart, FiHeart } from "react-icons/fi";
+import { featuredItems } from "./ProductsData"; // saara product data is file se aata hai
 
 const BigFeaturedSlider = () => {
-  const sliderRef = useRef(null);
-  
-  // 1. Category Filter State ('all' by default hai)
-  const [activeCategory, setActiveCategory] = useState('all');
+  const sliderRef = useRef(null); // slider div ko pakadne ke liye (arrows se scroll karwane ke liye)
+  const [activeCategory, setActiveCategory] = useState("all"); // abhi kaunsa tab selected hai
 
-  // 2. Aapki Screenshot wali Saari Images ka Data
-  const items = [
-    // Vegetables
-    { id: 1, name: "Fresh Carrot", price: "Rs 120", category: "vegetables", image: "/carroot.jpg" },
-    { id: 2, name: "Cauliflower", price: "Rs 150", category: "vegetables", image: "/cauliflower.jpg" },
-    { id: 3, name: "Fresh Celery", price: "Rs 180", category: "vegetables", image: "/Celery.jpg" },
-    { id: 4, name: "Cucumber", price: "Rs 90", category: "vegetables", image: "/Cucumber.jpg" },
-    { id: 5, name: "Eggplant", price: "Rs 110", category: "vegetables", image: "/Eggplant.jpg" },
-    { id: 6, name: "Fresh Beans", price: "Rs 160", category: "vegetables", image: "/freshbeans.jpg" },
-    { id: 7, name: "Green Bell Pepper", price: "Rs 220", category: "vegetables", image: "/Green bell pepper.jpg" },
-    { id: 8, name: "Fresh Lettuce", price: "Rs 140", category: "vegetables", image: "/Lettuce.jpg" },
-    { id: 9, name: "Green Cabbage", price: "Rs 100", category: "vegetables", image: "/cabbage.jpg" },
-
-    // Fruits
-    { id: 10, name: "Fresh Coconut", price: "Rs 350", category: "fruits", image: "/Coconut.jpg" },
-    { id: 11, name: "Black Grapes", price: "Rs 280", category: "fruits", image: "/Grapes.jpg" },
-    { id: 12, name: "Sweet Guava", price: "Rs 190", category: "fruits", image: "/Guava.jpg" },
-    { id: 13, name: "Fresh Kiwi", price: "Rs 450", category: "fruits", image: "/Kiwi.jpg" },
-    { id: 14, name: "Fresh Apple", price: "Rs 250", category: "fruits", image: "/apple.jfif" },
-    { id: 15, name: "Organic Banana", price: "Rs 120", category: "fruits", image: "/banana.jfif" },
-    { id: 16, name: "Sweet Apricot", price: "Rs 320", category: "fruits", image: "/Apricot.jpg" },
-    { id: 17, name: "Fresh Avocado", price: "Rs 400", category: "fruits", image: "/Avocado.jpg" },
-    { id: 18, name: "Blackberry", price: "Rs 500", category: "fruits", image: "/Blackberry.jpg" },
-    { id: 19, name: "Blueberry", price: "Rs 600", category: "fruits", image: "/Blueberry.jpg" },
+  // Tabs ki list. Naya tab chahiye to yahan ek line add karo
+  const tabs = [
+    { key: "all", label: "All" },
+    { key: "vegetables", label: "Vegetables" },
+    { key: "fruits", label: "Fruits" },
   ];
 
-  // 3. Category Filter Logic: Jab user tab par click karega to items filter honge
-  const filteredItems = activeCategory === 'all' 
-    ? items 
-    : items.filter(item => item.category === activeCategory);
+  // Tab ke hisaab se products filter
+  const filteredItems =
+    activeCategory === "all" ? featuredItems : featuredItems.filter((item) => item.category === activeCategory);
 
-  // 4. Smooth 60fps Scroll Function
+  // Tab badalne par slider wapas shuru me
+  const changeTab = (key) => {
+    setActiveCategory(key);
+    sliderRef.current?.scrollTo({ left: 0 });
+  };
+
+  // Arrows: dikhne wali width ka 80% scroll. "smooth" browser khud GPU se smooth karta hai (60fps)
   const handleScroll = (direction) => {
-    if (sliderRef.current) {
-      const scrollStep = 320; // 1 card ki choraai ke barabar slide karega
-      sliderRef.current.scrollBy({
-        left: direction === 'left' ? -scrollStep : scrollStep,
-        behavior: 'smooth'
-      });
-    }
+    const slider = sliderRef.current;
+    if (!slider) return;
+    slider.scrollBy({
+      left: direction === "left" ? -slider.clientWidth * 0.8 : slider.clientWidth * 0.8,
+      behavior: "smooth",
+    });
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 select-none">
-      
-      {/* =========================================================
-          1. HEADER (Title, Tabs & Navigation Buttons)
-      ========================================================= */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+    <section className="mx-auto w-full max-w-7xl select-none px-4 py-10 sm:px-6 lg:px-8">
+      {/* ---------- HEADER: title, tabs, arrows ---------- */}
+      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900">
-            Featured Products
-          </h2>
-          <p className="text-xs text-gray-500 mt-1">Fresh handpicked items straight from organic farms</p>
+          <h2 className="text-2xl font-semibold tracking-tight text-gray-900 sm:text-3xl">Featured Products</h2>
+          <p className="mt-1 text-sm text-gray-500">Fresh, handpicked and straight from organic farms</p>
         </div>
 
-        {/* Categories Filtering Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-sm font-semibold">
-          <button
-            onClick={() => setActiveCategory('all')}
-            className={`px-3.5 py-1.5 rounded-full transition cursor-pointer text-xs sm:text-sm ${
-              activeCategory === 'all' 
-                ? 'bg-green-700 text-white font-bold' 
-                : 'text-gray-600 hover:text-green-700 bg-gray-100'
-            }`}
-          >
-            All Items
-          </button>
-          <button
-            onClick={() => setActiveCategory('vegetables')}
-            className={`px-3.5 py-1.5 rounded-full transition cursor-pointer text-xs sm:text-sm ${
-              activeCategory === 'vegetables' 
-                ? 'bg-green-700 text-white font-bold' 
-                : 'text-gray-600 hover:text-green-700 bg-gray-100'
-            }`}
-          >
-            Vegetables
-          </button>
-          <button
-            onClick={() => setActiveCategory('fruits')}
-            className={`px-3.5 py-1.5 rounded-full transition cursor-pointer text-xs sm:text-sm ${
-              activeCategory === 'fruits' 
-                ? 'bg-green-700 text-white font-bold' 
-                : 'text-gray-600 hover:text-green-700 bg-gray-100'
-            }`}
-          >
-            Fruits
-          </button>
-        </div>
+        <div className="flex items-center justify-between gap-4">
+          {/* Tabs (map se banaye, isliye 3 baar same code nahi likha) */}
+          <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => changeTab(tab.key)}
+                className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-200 cursor-pointer ${
+                  activeCategory === tab.key ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-        {/* Slider Scroll Arrows */}
-        <div className="flex items-center gap-2 self-end md:self-auto">
-          <button
-            onClick={() => handleScroll('left')}
-            className="w-9 h-9 rounded-full bg-green-700 hover:bg-green-800 text-white flex items-center justify-center shadow-md transition active:scale-95 cursor-pointer"
-            aria-label="Scroll Left"
-          >
-            <FiChevronLeft size={20} />
-          </button>
-          <button
-            onClick={() => handleScroll('right')}
-            className="w-9 h-9 rounded-full bg-green-700 hover:bg-green-800 text-white flex items-center justify-center shadow-md transition active:scale-95 cursor-pointer"
-            aria-label="Scroll Right"
-          >
-            <FiChevronRight size={20} />
-          </button>
+          {/* Arrows */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleScroll("left")}
+              aria-label="Scroll left"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white active:scale-95 cursor-pointer"
+            >
+              <FiChevronLeft size={18} />
+            </button>
+            <button
+              onClick={() => handleScroll("right")}
+              aria-label="Scroll right"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-700 transition-colors hover:border-gray-900 hover:bg-gray-900 hover:text-white active:scale-95 cursor-pointer"
+            >
+              <FiChevronRight size={18} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* =========================================================
-          2. 2-ROWS HORIZONTAL SLIDER (Tighter Gap, Spacious Cards)
-      ========================================================= */}
+      {/* ---------- SLIDER: 2 ROWS ----------
+          grid-flow-col + grid-rows-2 : cards pehle neeche 2 rows me bharte hain, phir agla column, aur side me scroll
+          auto-cols-[..%]  : har column ki width (mobile 2 card, tablet 3, laptop 4, bade screen 5)
+          snap-x snap-mandatory : scroll rukte hi card seedha align
+          -mx-3 px-3 py-4 : hover shadow ke liye kinaron par jagah (warna shadow kat jata hai) */}
       <div
         ref={sliderRef}
-        className="grid grid-rows-2 grid-flow-col gap-3 sm:gap-4 overflow-x-auto scroll-smooth py-5 px-1"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="-mx-3 grid grid-flow-col grid-rows-2 auto-cols-[46%] snap-x snap-mandatory gap-x-3 gap-y-4 overflow-x-auto overscroll-x-contain scroll-smooth px-3 py-4 [&::-webkit-scrollbar]:hidden sm:auto-cols-[31.5%] sm:gap-x-4 lg:auto-cols-[23.8%] xl:auto-cols-[19%]"
+        style={{ scrollbarWidth: "none", scrollPaddingLeft: "0.75rem" }}
       >
         {filteredItems.map((item) => (
-          /* Card: Width ko w-64 (256px) rakha hai taake image dabbi hui na lage */
-          <div
-            key={item.id}
-            className="group w-60 sm:w-64 bg-white  hover:border-green-300 rounded-2xl p-3 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-          >
-            {/* Image Box */}
-            <div className="relative w-full h-44 sm:h-48 rounded-xl overflow-hidden bg-gray-50 flex items-center justify-center">
-              <img
-                src={item.image}
-                alt={item.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
+          <div key={item.id} className="snap-start">
+            {/* ---------- CARD ----------
+                group  : card pe hover karne se andar ki cheezein react karti hain
+                isolate: hover shadow layer card ke peeche rahe
+                hover:-translate-y-1 : hover par card thoda upar uthta hai */}
+            <article className="group relative isolate rounded-2xl p-2.5 transition-transform duration-300 ease-out hover:-translate-y-1">
+              {/* Hover par poore card ke chaaron taraf halka shadow (sirf opacity badalti hai, isliye smooth) */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 -z-10 rounded-2xl bg-white opacity-0 ring-1 ring-black/5 shadow-[0_14px_34px_-10px_rgba(0,0,0,0.22)] transition-opacity duration-300 group-hover:opacity-100"
               />
 
-              {/* 50% Soft Opacity Hover Overlay */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2.5">
-                {/* 60fps Fade-Up Action Buttons */}
-                <div className="w-full flex items-center gap-2 translate-y-3 group-hover:translate-y-0 transition-transform duration-300">
-                  <button className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 shadow-md transition active:scale-95 cursor-pointer">
-                    <FiShoppingCart size={14} />
-                    <span>Add to Cart</span>
-                  </button>
-                  <button 
-                    className="w-8 h-8 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center shadow-md transition active:scale-95 cursor-pointer shrink-0"
-                    title="Add to Wishlist"
-                  >
-                    <FiHeart size={15} />
+              {/* Image box: white background aur object-contain, isliye poora product dikhta hai (kat'ta nahi) */}
+              <div className="relative aspect-[4/5] overflow-hidden rounded-xl border border-gray-100 bg-white">
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-contain p-3 transition-transform duration-500 ease-out group-hover:scale-105 sm:p-4"
+                />
+
+                {/* Wishlist heart */}
+                <button
+                  aria-label={`Add ${item.name} to wishlist`}
+                  className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-700 opacity-0 shadow-sm ring-1 ring-black/5 transition-all duration-300 hover:text-red-500 group-hover:opacity-100 [@media(hover:none)]:opacity-100 cursor-pointer"
+                >
+                  <FiHeart size={16} />
+                </button>
+
+                {/* Add to Cart: hover par neeche se aata hai. [@media(hover:none)] = mobile, wahan hamesha dikhta hai */}
+                <div className="absolute inset-x-2.5 bottom-2.5 translate-y-3 opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
+                  <button className="flex w-full items-center justify-center gap-2 rounded-full bg-gray-900 py-2 text-xs font-semibold text-white shadow-lg transition-colors duration-200 hover:bg-green-700 sm:py-2.5 sm:text-sm cursor-pointer">
+                    <FiShoppingCart size={15} />
+                    Add to Cart
                   </button>
                 </div>
               </div>
-            </div>
 
-            {/* Product Title aur Green Price */}
-            <div className="pt-3 pb-1 text-center">
-              <h3 className="font-bold text-gray-800 text-sm sm:text-base capitalize truncate group-hover:text-green-700 transition">
-                {item.name}
-              </h3>
-              <p className="text-green-600 font-extrabold text-base sm:text-lg mt-0.5">
-                {item.price}
-              </p>
-            </div>
+              {/* Text: category, naam, price */}
+              <div className="mt-3 space-y-0.5 px-0.5">
+                <p className="text-[11px] uppercase tracking-wider text-gray-400">{item.category}</p>
+                <h3 className="truncate text-sm font-medium text-gray-900 sm:text-base">{item.name}</h3>
+                <p className="text-sm font-semibold text-green-700 sm:text-base">{item.price}</p>
+              </div>
+            </article>
           </div>
         ))}
       </div>
-
-    </div>
+    </section>
   );
 };
 

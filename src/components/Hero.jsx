@@ -1,226 +1,299 @@
-import { useState, useEffect } from 'react';
-import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { FiArrowRight, FiPercent } from 'react-icons/fi';
-import { FaLeaf } from 'react-icons/fa'; // Added for that organic touch
+import { FaLeaf } from 'react-icons/fa';
+
+/* =====================================================================
+   1) SLIDES KA DATA
+   Order yahi hai jo array me hai: Fruits -> Vegetables -> Dairy -> Dry Fruits -> Nuts
+   Naya slide chahiye to bas ek object copy karke neeche add kar do.
+   Saari videos `public/` folder me honi chahiye.
+   ===================================================================== */
+const slides = [
+  {
+    id: 1,
+    video: '/hero-fruitSplash.mp4',
+    badge: 'Seasonal Special Pick',
+    heading: 'Juicy Farm Fruits',
+    highlightText: 'Naturally Sweet & Pure',
+    tagline: 'Fresh fruits, with natural sweetness.',
+    description: 'Seasonal fruits picked at their best, with no chemicals and no artificial sprays.',
+    discountTag: 'Buy 1 Get 1 Free',
+    buttonText: 'Explore Fruits',
+  },
+  {
+    id: 2,
+    video: '/hero-vid.mp4',
+    // Agar is video me logo kisi corner me hai to neeche wali line ka comment hata do.
+    // scale-125 zoom karta hai, origin-top-left se neeche-right ka corner (logo) frame se bahar chala jata hai.
+    // videoClass: 'scale-125 origin-top-left',
+    badge: '100% Fresh & Organic',
+    heading: 'Fresh Vegetables &',
+    highlightText: 'Healthy Green Diet',
+    tagline: 'Straight from the farm to your home.',
+    description: 'Hand-picked produce that keeps your family healthy, fit and full of energy.',
+    discountTag: 'Flat 20% OFF',
+    buttonText: 'Order Fresh Now',
+  },
+  {
+    id: 3,
+    video: '/dairy.mp4',
+    badge: 'Farm-Fresh Dairy',
+    heading: 'Pure Dairy,',
+    highlightText: 'Straight from the Farm',
+    tagline: 'Pure milk, delivered fresh to your home.',
+    description: 'Fresh milk, butter and milk powder from healthy herds, delivered the same day.',
+    discountTag: 'Free Home Delivery',
+    buttonText: 'Shop Dairy',
+  },
+  {
+    id: 4,
+    video: '/hero-dryfruit.mp4',
+    badge: 'Premium Dry Fruits',
+    heading: 'Rich in Flavour,',
+    highlightText: 'Packed with Nutrition',
+    tagline: 'The finest dry fruits, for every occasion.',
+    description: 'Almonds, dates, raisins and more, sourced from trusted growers and packed fresh.',
+    discountTag: 'Flat 20% OFF',
+    buttonText: 'Shop Dry Fruits',
+  },
+  {
+    id: 5,
+    video: '/hero-nutsNfruit.mp4',
+    badge: 'Healthy Snacking',
+    heading: 'Crunchy Nuts &',
+    highlightText: 'Wholesome Snacks',
+    tagline: 'Healthy snacks with a natural taste.',
+    description: 'Roasted nuts, seeds and honest snacks for every craving, free of artificial additives.',
+    discountTag: 'New Arrivals',
+    buttonText: 'Browse Snacks',
+  },
+];
+
+/* =====================================================================
+   2) TIMING SETTINGS (yahan se speed badal sakte ho)
+   ===================================================================== */
+const FADE_MS = 1100; // ek video se doosri video me crossfade kitni der ka
+const MIN_MS = 4000; // slide kam az kam itni der (ms) dikhegi
+const MAX_MS = 6500; // clip lambi ho tab bhi itne par agli slide aa jayegi
+
+/* =====================================================================
+   3) TEXT FADE HELPER
+   Sirf opacity use ki hai (transform/blur nahi), kyunki opacity GPU par chalti hai
+   aur video ke upar bhi 60fps smooth rehti hai. Blur wali animation lag karti thi.
+   - active = true  -> text dheere se aata hai (delay ke saath, ek ke baad ek)
+   - active = false -> text jaldi se fade-out ho jata hai
+   `order` se pata chalta hai konsa element pehle aayega (0 = sabse pehle)
+   ===================================================================== */
+const reveal = (active, order) => ({
+  opacity: active ? 1 : 0,
+  transition: active
+    ? `opacity 1000ms ease ${600 + order * 180}ms`
+    : 'opacity 400ms ease 0ms',
+});
 
 const Hero = () => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
+  /* ---------------- STATE (jo cheezein badalti rehti hain) ---------------- */
+  const [current, setCurrent] = useState(0); // abhi konsi slide chal rahi hai
+  const [mounted, setMounted] = useState(false); // page load ke baad text fade-in karwane ke liye
+  const [height, setHeight] = useState(null); // hero ki height (navbar/banner minus karke)
+  const [durations, setDurations] = useState({}); // har video ki length (seconds)
+  const [ready, setReady] = useState({}); // kaunsi video load ho chuki hai
 
-  const slides = [
-    {
-      id: 1,
-      image: './heroimg1.png',
-      badge: '🌿 100% Fresh & Organic',
-      heading: 'Fresh Vegetables &',
-      highlightText: 'Healthy Green Diet',
-      description: 'Seedhi khet se aapke ghar tak! Taaza sabziyan aur fruits jo aapki family ko healthy aur fit rakhain.',
-      discountTag: 'Flat 20% OFF',
-      buttonText: 'Order Fresh Now',
-    },
-    {
-      id: 2,
-      image: './heroimg2.png',
-      badge: '🍎 Seasonal Special Pick',
-      heading: 'Juicy Farm Fruits',
-      highlightText: 'Naturally Sweet & Pure',
-      description: 'Baghbanon se chune hue sweet seasonal fruits, baghair kisi chemicals aur artificial sprays ke.',
-      discountTag: 'Buy 1 Get 1 Free',
-      buttonText: 'Explore Fruits',
-    },
-    {
-      id: 3,
-      image: './heroimg3.png',
-      badge: '⚡ Express 30-Min Delivery',
-      heading: 'Pure Daily Essentials',
-      highlightText: '& Organic Grocery',
-      description: 'Rozmarrah ka organic doodh, desi makhan, aur tazi bakery items ek hi click par aapke darwaze tak.',
-      discountTag: 'Free Home Delivery',
-      buttonText: 'Shop Essentials',
-    },
-  ];
+  /* ---------------- REFS (DOM cheezein pakadne ke liye) ---------------- */
+  const sectionRef = useRef(null); // hero section khud
+  const videoRefs = useRef([]); // saari video elements ki list
+  const touchStartX = useRef(null); // mobile swipe ka start point
 
-  // const nextSlide = () => {
-  //   setCurrentIndex((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
-  // };
+  /* ---------------- AGLI / PICHLI SLIDE ---------------- */
+  const next = useCallback(() => setCurrent((p) => (p === slides.length - 1 ? 0 : p + 1)), []);
+  const prev = useCallback(() => setCurrent((p) => (p === 0 ? slides.length - 1 : p - 1)), []);
 
-  // const prevSlide = () => {
-  //   setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-  // };
-
-const nextSlide = ()=>{
-  setCurrentIndex((prev) =>(prev === slides.length -1 ? 0 : prev -1));
-};
-
-const prevSlide = () =>{
-  setCurrentIndex((prev) => (prev === 0 ? slides.length -1    : prev + 1));
-};
-  // Auto-scroll with pause-on-hover for better UX
+  /* ---------------- EFFECT 1: page khulte hi text fade-in ---------------- */
   useEffect(() => {
-    if (isHovered) return;
-    const timer = setInterval(() => {
-      nextSlide();
-    }, 5000); // 5 seconds gives users time to read
-    return () => clearInterval(timer);
-  }, [isHovered, slides.length]);
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
+  /* ---------------- EFFECT 2: HEIGHT FIT KARNA ----------------
+     Hero ki height = screen ki height - (banner + navbar).
+     Hero khud apni position naap leta hai, isliye banner/navbar ki height
+     badle tab bhi sahi fit rehta hai. */
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (!sectionRef.current) return;
+      const top = sectionRef.current.getBoundingClientRect().top + window.scrollY;
+      setHeight(Math.max(window.innerHeight - top, 480)); // 480px se chhota nahi hone dena
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const ro = new ResizeObserver(measure); // banner band ho to bhi dobara naapta hai
+    ro.observe(document.body);
+    return () => {
+      window.removeEventListener('resize', measure);
+      ro.disconnect();
+    };
+  }, []);
+
+  /* ---------------- EFFECT 3: AUTO SLIDE CHANGE ----------------
+     Slide ka time = us video ki apni length, lekin MIN_MS aur MAX_MS ke beech.
+     Video loop nahi hoti, isliye "3 baar chal ke phir change" wala masla nahi. */
+  useEffect(() => {
+    const d = durations[current];
+    const ms = d ? Math.min(Math.max(d * 1000 - FADE_MS / 2, MIN_MS), MAX_MS) : 5000;
+    const t = setTimeout(next, ms);
+    return () => clearTimeout(t);
+  }, [current, durations, next]);
+
+  /* ---------------- EFFECT 4: VIDEO PLAY / PAUSE ----------------
+     Sirf active video play hoti hai (CPU/GPU bachta hai, lag kam).
+     Purani video crossfade khatam hone ke baad pause hoti hai. */
+  useEffect(() => {
+    const active = videoRefs.current[current];
+    if (active) {
+      active.currentTime = 0; // shuru se chalao
+      active.play().catch(() => {}); // browser block kare to error ignore
+    }
+    const t = setTimeout(() => {
+      videoRefs.current.forEach((v, i) => v && i !== current && v.pause());
+    }, FADE_MS + 100);
+    return () => clearTimeout(t);
+  }, [current]);
+
+  /* ---------------- VIDEO KI METADATA (length) MIL GAYI ---------------- */
+  const onMeta = (index, e) => {
+    const v = e.currentTarget;
+    // Agar clip MIN_MS se chhoti hai to last frame par ruk na jaye, isliye sirf tab loop
+    v.loop = v.duration * 1000 < MIN_MS;
+    setDurations((d) => ({ ...d, [index]: v.duration }));
+  };
+
+  /* ---------------- MOBILE SWIPE (left/right) ---------------- */
+  const onTouchStart = (e) => (touchStartX.current = e.touches[0].clientX);
+  const onTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) (diff > 0 ? next : prev)(); // 50px se zyada swipe ho tabhi
+    touchStartX.current = null;
+  };
+
+  /* ---------------- UI ---------------- */
   return (
     <>
-      {/* Custom Staggered Animation Styles */}
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up {
-          animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          opacity: 0; /* Start hidden */
-        }
-        .delay-100 { animation-delay: 100ms; }
-        .delay-200 { animation-delay: 200ms; }
-        .delay-300 { animation-delay: 300ms; }
-        .delay-400 { animation-delay: 400ms; }
-        .delay-500 { animation-delay: 500ms; }
-      `}</style>
+    {/* FONTS: Poppins (bold, modern) + Fraunces italic (stylish line). Google Fonts se load hote hain.
+        Tez load ke liye in dono ko index.html ke <head> me <link> se bhi daal sakte ho. */}
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,800;1,500&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,500&display=swap');
+      .font-poppins { font-family: 'Poppins', system-ui, sans-serif; }
+      .font-stylish { font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 500; }
+    `}</style>
+    <section
+      ref={sectionRef}
+      // --hh = hero ki height. Heading ka size isi se nikalta hai taake text kabhi screen se bahar na jaye
+      style={{ height: height || '80svh', '--hh': height ? `${height}px` : '80svh' }}
+      className="font-poppins relative w-full overflow-hidden select-none bg-neutral-950"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {slides.map((slide, index) => {
+        const isActive = index === current;
+        const show = isActive && mounted; // text tabhi dikhao jab slide active ho
+        // Active aur uske agli wali video pehle se load, baaki sirf metadata (data bachta hai)
+        const preload = isActive || index === (current + 1) % slides.length ? 'auto' : 'metadata';
 
-      <div 
-        className="relative w-full overflow-hidden select-none group"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        {/* Horizontal Sliding Track */}
-        <div 
-          className="flex transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] w-full will-change-transform"
-          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
-        >
-          {slides.map((slide, index) => {
-            const isActive = index === currentIndex;
-            return (
-              <div 
-                key={slide.id} 
-                className="relative w-full shrink-0 h-[500px] sm:h-[600px] lg:h-[700px] flex items-center"
-              >
-                {/* Background Image with Subtle Zoom Effect */}
-                <img
-                  src={slide.image}
-                  alt={slide.heading}
-                  className={`absolute inset-0 w-full h-full object-cover object-center transition-transform duration-[2000ms] ease-out  ${
-                    isActive ? 'scale-105' : 'scale-100'
-                  }`}
-                />
+        return (
+          // Har slide ek layer hai; inactive layer opacity 0 hoti hai (crossfade)
+          <div
+            key={slide.id}
+            aria-hidden={!isActive}
+            style={{ transitionDuration: `${FADE_MS}ms` }}
+            className={`absolute inset-0 flex items-center transition-opacity ease-in-out will-change-[opacity] ${
+              isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+            }`}
+          >
+            {/* Background video. Load hone tak transparent rehti hai, phir fade-in */}
+            <video
+              ref={(el) => (videoRefs.current[index] = el)}
+              src={slide.video}
+              className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-700 ${
+                slide.videoClass || ''
+              }`}
+              style={{ opacity: ready[index] ? 1 : 0 }}
+              muted
+              playsInline
+              disablePictureInPicture
+              preload={preload}
+              onLoadedMetadata={(e) => onMeta(index, e)}
+              onLoadedData={() => setReady((r) => ({ ...r, [index]: true }))}
+            />
 
-                {/* Organic Gradient Overlay (Rich Green instead of harsh black) */}
-                <div className="absolute inset-0 bg-gradient-to-r from-green-950/95 via-green-900/60 to-transparent -z-10" />
-                
-                {/* Subtle decorative glow behind text */}
-                <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl -z-10 pointer-events-none" />
+            {/* Overlay: ek hi layer (left side dark taake text padhne me aaye, neeche halka dark).
+                Mobile par poori video thodi dark (max-sm:bg-black/35) kyunki text poori width lega */}
+            <div className="absolute inset-0 bg-black/0 max-sm:bg-black/35 bg-[linear-gradient(to_right,rgba(0,0,0,0.75),rgba(0,0,0,0.35)_50%,rgba(0,0,0,0.05)),linear-gradient(to_top,rgba(0,0,0,0.45),transparent_35%)]" />
 
-                {/* =========================================================
-                    SLIDE TEXT & BUTTON CONTENT (Remounts on index change to trigger animation)
-                ========================================================= */}
-                <div key={`text-${currentIndex}`} className="max-w-7xl mx-auto px-6 sm:px-12 md:px-16 w-full relative z-10">
-                  <div className="max-w-2xl text-white space-y-5 sm:space-y-6 pt-8">
-                    
-                    {/* Top Badges */}
-                    <div className="flex items-center gap-3 flex-wrap animate-fade-in-up delay-100">
-                      <span className="bg-white/10 backdrop-blur-md border border-white/20 text-emerald-300 text-xs sm:text-sm font-bold uppercase tracking-wider px-4 py-1.5 rounded-full shadow-sm flex items-center gap-2">
-                        <FaLeaf className="text-emerald-400" size={14} />
-                        {slide.badge}
-                      </span>
-                      <span className="bg-amber-500 hover:bg-amber-400 text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg shadow-amber-500/30 transition-colors">
-                        <FiPercent size={14} /> {slide.discountTag}
-                      </span>
-                    </div>
+            {/* Text content */}
+            <div className="relative z-10 mx-auto w-full max-w-7xl px-5 sm:px-12 md:px-16 py-6">
+              <div className="max-w-3xl space-y-3 sm:space-y-4 text-white">
+                {/* Badge + discount tag */}
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3" style={reveal(show, 0)}>
+                  <span className="flex items-center gap-2 rounded-full border border-white/25 bg-black/30 px-3.5 py-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-emerald-300">
+                    <FaLeaf className="text-emerald-400" size={13} />
+                    {slide.badge}
+                  </span>
+                  <span className="flex items-center gap-1.5 rounded-full bg-amber-500 px-3 py-1.5 text-[11px] sm:text-xs font-bold text-white shadow-lg shadow-amber-500/30">
+                    <FiPercent size={13} /> {slide.discountTag}
+                  </span>
+                </div>
 
-                    {/* Main Heading */}
-                    <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-[1.1] tracking-tight text-white animate-fade-in-up delay-200">
-                      {slide.heading} <br className="hidden sm:block" />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-300 relative inline-block">
-                        {slide.highlightText}
-                        {/* Subtle underline accent */}
-                        <span className="absolute -bottom-2 left-0 w-1/2 h-1.5 bg-emerald-500/50 rounded-full blur-sm"></span>
-                      </span>
-                    </h1>
+                {/* Heading (pehle wala bold style). pb-1.5 isliye ki "y" aur "g" ka neeche ka hissa na kate */}
+                <h1
+                  className="font-extrabold leading-[1.08] tracking-tight"
+                  // clamp(min, preferred, max): chhoti screen/height par chhota, bade par bada, kabhi bahar nahi
+                  style={{ ...reveal(show, 1), fontSize: 'clamp(1.875rem, min(7.2vw, calc(var(--hh) * 0.09)), 4.75rem)' }}
+                >
+                  {/* Line 1: bold */}
+                  <span className="block sm:whitespace-nowrap">{slide.heading}</span>
+                  {/* Line 2: stylish italic serif + green gradient. pb-2 se "y/g" ka neeche ka hissa nahi katta */}
+                  <span className="font-stylish block pb-2 sm:whitespace-nowrap bg-gradient-to-r from-emerald-300 to-green-200 bg-clip-text text-transparent">
+                    {slide.highlightText}
+                  </span>
+                </h1>
 
-                    {/* Short Description */}
-                    <p className="text-sm sm:text-base md:text-lg text-gray-200/90 max-w-lg leading-relaxed animate-fade-in-up delay-300">
-                      {slide.description}
-                    </p>
+                {/* English tagline (pehle Urdu wali line yahan thi) */}
+                <p
+                  className="text-base sm:text-lg font-medium italic text-emerald-100"
+                  style={reveal(show, 2)}
+                >
+                  {slide.tagline}
+                </p>
 
-                    {/* Call-To-Action Button */}
-                    <div className="pt-2 animate-fade-in-up delay-400">
-                      <button className="group relative overflow-hidden bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm sm:text-base px-8 py-4 rounded-full shadow-xl shadow-emerald-900/30 transition-all duration-300 hover:shadow-emerald-500/40 hover:-translate-y-1 active:translate-y-0 flex items-center gap-3">
-                        <span className="relative z-10 flex items-center gap-2">
-                          {slide.buttonText}
-                          <FiArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
-                        </span>
-                        {/* Button hover shine effect */}
-                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 ease-in-out" />
-                      </button>
-                    </div>
+                {/* Description */}
+                <p
+                  className="max-w-lg text-sm sm:text-base leading-relaxed text-white/80 [@media(max-height:520px)]:hidden"
+                  style={reveal(show, 3)}
+                >
+                  {slide.description}
+                </p>
 
-                  </div>
+                {/* Button */}
+                <div className="pt-1" style={reveal(show, 4)}>
+                  <button
+                    tabIndex={isActive ? 0 : -1}
+                    className="group relative flex items-center gap-3 overflow-hidden rounded-full bg-emerald-600 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-white shadow-xl shadow-emerald-900/30 transition-colors duration-300 hover:bg-emerald-500 cursor-pointer"
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      {slide.buttonText}
+                      <FiArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
+                    </span>
+                    {/* Hover par chamak (shine) wala effect */}
+                    <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-full" />
+                  </button>
                 </div>
               </div>
-            );
-          })}
-        </div>
-
-        {/* =========================================================
-            PREVIOUS ARROW (Left)
-        ========================================================= */}
-        <button
-          onClick={prevSlide}
-          className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-20 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-lg transition-all duration-300 hover:bg-white/20 hover:scale-110 active:scale-95 cursor-pointer group"
-          aria-label="Previous"
-        >
-          <IoIosArrowBack size={24} className="transition-transform duration-300 group-hover:-translate-x-0.5" />
-        </button>
-
-        {/* =========================================================
-            NEXT ARROW (Right)
-        ========================================================= */}
-        <button
-          onClick={nextSlide}
-          className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-20 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white flex items-center justify-center shadow-lg transition-all duration-300 hover:bg-white/20 hover:scale-110 active:scale-95 cursor-pointer group"
-          aria-label="Next"
-        >
-          <IoIosArrowForward size={24} className="transition-transform duration-300 group-hover:translate-x-0.5" />
-        </button>
-
-        {/* =========================================================
-            BOTTOM DOTS INDICATORS
-        ========================================================= */}
-        <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-black/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-          {slides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentIndex(index)}
-              className={`relative transition-all duration-500 ease-out rounded-full cursor-pointer overflow-hidden ${
-                index === currentIndex 
-                  ? 'w-8 h-2.5 bg-emerald-400 shadow-lg shadow-emerald-400/50' 
-                  : 'w-2.5 h-2.5 bg-white/40 hover:bg-white/70'
-              }`}
-              aria-label={`Go to slide ${index + 1}`}
-            >
-              {/* Progress bar animation for active dot */}
-              {index === currentIndex && !isHovered && (
-                <span className="absolute inset-0 bg-white/30 animate-[progress_5s_linear_forwards]" 
-                      style={{ animation: 'shrinkWidth 5s linear forwards' }} 
-                />
-              )}
-            </button>
-          ))}
-        </div>
-        
-        {/* Keyframe for dot progress */}
-        <style>{`
-          @keyframes shrinkWidth {
-            from { width: 100%; }
-            to { width: 0%; }
-          }
-        `}</style>
-      </div>
+            </div>
+          </div>
+        );
+      })}
+    </section>
     </>
   );
 };
